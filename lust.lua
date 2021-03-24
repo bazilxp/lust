@@ -1,6 +1,8 @@
--- lust v0.1.0 - Lua test framework
+-- lust v0.1.1 - Lua test framework
+-- Adjusted for custom table output 25/Feb/2021
 -- https://github.com/bjornbytes/lust
 -- MIT LICENSE
+-- colors  https://stackoverflow.com/questions/2048509/how-to-echo-with-different-colors-in-the-windows-command-line/38617204#38617204
 
 local lust = {}
 lust.level = 0
@@ -9,13 +11,30 @@ lust.errors = 0
 lust.befores = {}
 lust.afters = {}
 
+local blue = string.char(27) .. '[35m'
 local red = string.char(27) .. '[31m'
 local green = string.char(27) .. '[32m'
 local normal = string.char(27) .. '[0m'
 local function indent(level) return string.rep('\t', level or lust.level) end
 
+function mytostring (set)
+  if type(set) ~= "table" then
+  if type(set) == "string" then  return "'"..set.."'" end
+    return tostring(set)
+  end
+  local s = "\n{"
+  local sep = ""
+
+  for k, v in pairs(set) do
+    s = s ..sep..mytostring(v)
+    sep = ", "
+  end
+  return s .. "}"
+end
+
+
 function lust.describe(name, fn)
-  print(indent() .. name)
+  print(indent() ..blue .. name)
   lust.level = lust.level + 1
   fn()
   lust.befores[lust.level] = {}
@@ -65,13 +84,13 @@ end
 local function isa(v, x)
   if type(x) == 'string' then
     return type(v) == x,
-      'expected ' .. tostring(v) .. ' to be a ' .. x,
-      'expected ' .. tostring(v) .. ' to not be a ' .. x
+    'expected ' .. tostring(v) .. ' to be a ' .. x,
+    'expected ' .. tostring(v) .. ' to not be a ' .. x
   elseif type(x) == 'table' then
     if type(v) ~= 'table' then
       return false,
-        'expected ' .. tostring(v) .. ' to be a ' .. tostring(x),
-        'expected ' .. tostring(v) .. ' to not be a ' .. tostring(x)
+      'expected ' .. tostring(v) .. ' to be a ' .. tostring(x),
+      'expected ' .. tostring(v) .. ' to not be a ' .. tostring(x)
     end
 
     local seen = {}
@@ -83,8 +102,8 @@ local function isa(v, x)
     end
 
     return false,
-      'expected ' .. tostring(v) .. ' to be a ' .. tostring(x),
-      'expected ' .. tostring(v) .. ' to not be a ' .. tostring(x)
+    'expected ' .. tostring(v) .. ' to be a ' .. tostring(x),
+    'expected ' .. tostring(v) .. ' to not be a ' .. tostring(x)
   end
 
   error('invalid type ' .. tostring(x))
@@ -118,29 +137,29 @@ local paths = {
   be = { 'a', 'an', 'truthy',
     test = function(v, x)
       return v == x,
-        'expected ' .. tostring(v) .. ' and ' .. tostring(x) .. ' to be equal',
-        'expected ' .. tostring(v) .. ' and ' .. tostring(x) .. ' to not be equal'
+      'expected ' .. tostring(v) .. ' and ' .. tostring(x) .. ' to be equal',
+      'expected ' .. tostring(v) .. ' and ' .. tostring(x) .. ' to not be equal'
     end
   },
   exist = {
     test = function(v)
       return v ~= nil,
-        'expected ' .. tostring(v) .. ' to exist',
-        'expected ' .. tostring(v) .. ' to not exist'
+      'expected ' .. tostring(v) .. ' to exist',
+      'expected ' .. tostring(v) .. ' to not exist'
     end
   },
   truthy = {
     test = function(v)
       return v,
-        'expected ' .. tostring(v) .. ' to be truthy',
-        'expected ' .. tostring(v) .. ' to not be truthy'
+      'expected ' .. tostring(v) .. ' to be truthy',
+      'expected ' .. tostring(v) .. ' to not be truthy'
     end
   },
   equal = {
     test = function(v, x)
       return strict_eq(v, x),
-        'expected ' .. tostring(v) .. ' and ' .. tostring(x) .. ' to be exactly equal',
-        'expected ' .. tostring(v) .. ' and ' .. tostring(x) .. ' to not be exactly equal'
+      'expected ' .. mytostring(v) .. ' and ' .. mytostring(x) .. ' to be exactly equal',
+      'expected ' .. mytostring(v) .. ' and ' .. mytostring(x) .. ' to not be exactly equal'
     end
   },
   have = {
@@ -150,15 +169,15 @@ local paths = {
       end
 
       return has(v, x),
-        'expected ' .. tostring(v) .. ' to contain ' .. tostring(x),
-        'expected ' .. tostring(v) .. ' to not contain ' .. tostring(x)
+      'expected ' .. tostring(v) .. ' to contain ' .. tostring(x),
+      'expected ' .. tostring(v) .. ' to not contain ' .. tostring(x)
     end
   },
   fail = {
     test = function(v)
       return not pcall(v),
-        'expected ' .. tostring(v) .. ' to fail',
-        'expected ' .. tostring(v) .. ' to not fail'
+      'expected ' .. tostring(v) .. ' to fail',
+      'expected ' .. tostring(v) .. ' to not fail'
     end
   }
 }
@@ -170,28 +189,28 @@ function lust.expect(v)
   assertion.negate = false
 
   setmetatable(assertion, {
-    __index = function(t, k)
-      if has(paths[rawget(t, 'action')], k) then
-        rawset(t, 'action', k)
-        local chain = paths[rawget(t, 'action')].chain
-        if chain then chain(t) end
-        return t
-      end
-      return rawget(t, k)
-    end,
-    __call = function(t, ...)
-      if paths[t.action].test then
-        local res, err, nerr = paths[t.action].test(t.val, ...)
-        if assertion.negate then
-          res = not res
-          err = nerr or err
+      __index = function(t, k)
+        if has(paths[rawget(t, 'action')], k) then
+          rawset(t, 'action', k)
+          local chain = paths[rawget(t, 'action')].chain
+          if chain then chain(t) end
+          return t
         end
-        if not res then
-          error(err or 'unknown failure', 2)
+        return rawget(t, k)
+      end,
+      __call = function(t, ...)
+        if paths[t.action].test then
+          local res, err, nerr = paths[t.action].test(t.val, ...)
+          if assertion.negate then
+            res = not res
+            err = nerr or err
+          end
+          if not res then
+            error(err or 'unknown failure', 2)
+          end
         end
       end
-    end
-  })
+    })
 
   return assertion
 end
