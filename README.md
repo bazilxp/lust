@@ -30,6 +30,11 @@ describe('my project', function()
     it('feature2', function()
       expect(nil).to.exist() -- Fail
     end)
+    it('test table compare',function()
+       exp= {{1,2,3},{3,2,1}}
+       act= {{3,2,1},{1,2,3}}
+       expect(exp).to.equal(act)
+    end)
   end)
 end)
 ```
